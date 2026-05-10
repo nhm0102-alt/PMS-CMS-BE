@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: pms-backend
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/pms?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:pms}
+    password: ${DB_PASSWORD:pms}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:dev-only-change-me-please-use-32-bytes-min}
+    issuer: ${APP_JWT_ISSUER:pms-backend}
+    expiration-seconds: ${APP_JWT_EXP_SECONDS:3600}
+  cors:
+    allowed-origins: ${APP_CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+  auth:
+    username: ${APP_AUTH_USERNAME:admin}
+    password: ${APP_AUTH_PASSWORD:admin}
