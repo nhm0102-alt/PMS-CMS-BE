@@ -65,6 +65,8 @@ public class SecurityConfig {
                 .requestMatchers("/user-properties/**").permitAll()
                 .requestMatchers("/license-transactions/**").permitAll()
                 .requestMatchers("/users/**").permitAll()
+                .requestMatchers("/ota-channels/**").permitAll()
+                .requestMatchers("/pricing/**").permitAll()
                 .requestMatchers("/integrations/**").permitAll()
                 .requestMatchers("/api/integrations/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
