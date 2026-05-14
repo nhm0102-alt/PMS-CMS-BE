@@ -2,18 +2,53 @@ package com.pms.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pms.backend.api.service.ReservationService;
+import com.pms.backend.api.service.RoomAllotmentService;
 import com.pms.backend.model.ReservationEntity;
 import com.pms.backend.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ReservationServiceImpl extends AbstractRestEntityServiceImpl<ReservationEntity> implements ReservationService {
-    public ReservationServiceImpl(ReservationRepository repository, ObjectMapper objectMapper) {
+    private final ChannexSyncService channexSyncService;
+    private final RoomAllotmentService roomAllotmentService;
+
+    public ReservationServiceImpl(ReservationRepository repository, ObjectMapper objectMapper, ChannexSyncService channexSyncService, RoomAllotmentService roomAllotmentService) {
         super(repository, objectMapper, ReservationEntity::new);
+        this.channexSyncService = channexSyncService;
+        this.roomAllotmentService = roomAllotmentService;
+    }
+
+    @Override
+    protected void afterSave(ReservationEntity entity, Map<String, Object> data) {
+        try {
+            // Only update allotment for new reservations to avoid double counting on updates
+            if (entity.getCreatedDate().equals(entity.getUpdatedDate())) {
+                roomAllotmentService.updateAllotmentFromReservation(data, false);
+                
+                // Push updated availability to Channex
+                String roomTypeId = (String) data.get("room_type_id");
+                if (roomTypeId != null) {
+                    LocalDate checkIn = LocalDate.parse((String) data.get("check_in_date"));
+                    LocalDate checkOut = LocalDate.parse((String) data.get("check_out_date"));
+                    Set<String> months = new HashSet<>();
+                    for (LocalDate date = checkIn; date.isBefore(checkOut); date = date.plusDays(1)) {
+                        months.add(date.getYear() + "-" + date.getMonthValue());
+                    }
+                    for (String m : months) {
+                        String[] parts = m.split("-");
+                        channexSyncService.pushAvailability(roomTypeId, Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
