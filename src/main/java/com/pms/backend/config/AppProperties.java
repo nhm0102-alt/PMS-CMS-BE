@@ -6,8 +6,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(
         Jwt jwt,
         Cors cors,
-        Auth auth
+        Auth auth,
+        Channex channex
 ) {
+    public record Channex(
+            String apiKey,
+            String baseUrl
+    ) {
+    }
+
     public record Jwt(
             String secret,
             String issuer,

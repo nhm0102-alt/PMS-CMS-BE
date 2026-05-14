@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface RoomRateMonthlyRepository extends JpaRepository<RoomRateMonthlyEntity, Long> {
     List<RoomRateMonthlyEntity> findByPropertyIdAndInYearAndInMonth(String propertyId, Integer inYear, Integer inMonth);
     Optional<RoomRateMonthlyEntity> findByRoomTypeIdAndRatePlanIdAndInYearAndInMonth(String roomTypeId, String ratePlanId, Integer inYear, Integer inMonth);
+    Optional<RoomRateMonthlyEntity> findByRatePlanIdAndInYearAndInMonth(String ratePlanId, Integer inYear, Integer inMonth);
 }

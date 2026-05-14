@@ -21,13 +21,16 @@ public class PricingServiceImpl implements PricingService {
     private final RoomRateMonthlyRepository rateRepository;
     private final RoomAllotmentMonthlyRepository allotmentRepository;
     private final RoomRestrictionMonthlyRepository restrictionRepository;
+    private final ChannexSyncService channexSyncService;
 
     public PricingServiceImpl(RoomRateMonthlyRepository rateRepository,
                               RoomAllotmentMonthlyRepository allotmentRepository,
-                              RoomRestrictionMonthlyRepository restrictionRepository) {
+                              RoomRestrictionMonthlyRepository restrictionRepository,
+                              ChannexSyncService channexSyncService) {
         this.rateRepository = rateRepository;
         this.allotmentRepository = allotmentRepository;
         this.restrictionRepository = restrictionRepository;
+        this.channexSyncService = channexSyncService;
     }
 
     @Override
@@ -160,6 +163,13 @@ public class PricingServiceImpl implements PricingService {
                     });
             rate.setCol(day, price);
             rateRepository.save(rate);
+
+            try {
+                channexSyncService.pushRates(rpId, year, month);
+            } catch (Exception e) {
+                // Log error but don't fail the local update
+                e.printStackTrace();
+            }
         }
 
         // Update Allotment
@@ -176,6 +186,12 @@ public class PricingServiceImpl implements PricingService {
                     });
             a.setCol(day, allotment);
             allotmentRepository.save(a);
+
+            try {
+                channexSyncService.pushAvailability(rtId, year, month);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         // Update Restrictions

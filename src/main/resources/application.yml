@@ -26,3 +26,6 @@ app:
   auth:
     username: ${APP_AUTH_USERNAME:admin}
     password: ${APP_AUTH_PASSWORD:admin}
+  channex:
+    api-key: ${CHANNEX_API_KEY:}
+    base-url: ${CHANNEX_BASE_URL:https://api.channex.io/api/v1}

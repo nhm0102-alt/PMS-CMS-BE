@@ -28,6 +28,9 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
     protected void normalize(Map<String, Object> data) {
     }
 
+    protected void afterSave(E entity, Map<String, Object> data) {
+    }
+
     @Override
     public List<Map<String, Object>> list(Map<String, String> params) {
         String sortBy = params.get("sort_by");
@@ -78,6 +81,7 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         e.setDeleted(false);
         e.setDataJson(encode(data));
         E saved = repository.save(e);
+        afterSave(saved, data);
         return toResponse(saved, data);
     }
 
@@ -125,6 +129,7 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         normalize(current);
         r.setDataJson(encode(current));
         E saved = repository.save(r);
+        afterSave(saved, current);
         return toResponse(saved, current);
     }
 
