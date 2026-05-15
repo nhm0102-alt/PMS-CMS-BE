@@ -159,13 +159,19 @@ public class ChannexSyncService {
         if (allotment == null) return;
 
         List<Map<String, Object>> updates = new ArrayList<>();
-        for (int day = 1; day <= 31; day++) {
+        LocalDate today = LocalDate.now();
+        int daysInMonth = java.time.YearMonth.of(year, month).lengthOfMonth();
+
+        for (int day = 1; day <= daysInMonth; day++) {
             Integer value = allotment.getCol(day);
             if (value != null) {
+                LocalDate date = LocalDate.of(year, month, day);
+                if (date.isBefore(today)) continue;
+
                 Map<String, Object> update = new HashMap<>();
                 update.put("property_id", channexPropertyId);
                 update.put("room_type_id", channexRoomTypeId);
-                update.put("date", String.format("%04d-%02d-%02d", year, month, day));
+                update.put("date", date.toString());
                 update.put("availability", value);
                 updates.add(update);
             }
@@ -194,13 +200,19 @@ public class ChannexSyncService {
         if (rate == null) return;
 
         List<Map<String, Object>> updates = new ArrayList<>();
-        for (int day = 1; day <= 31; day++) {
+        LocalDate today = LocalDate.now();
+        int daysInMonth = java.time.YearMonth.of(year, month).lengthOfMonth();
+
+        for (int day = 1; day <= daysInMonth; day++) {
             java.math.BigDecimal value = rate.getCol(day);
             if (value != null) {
+                LocalDate date = LocalDate.of(year, month, day);
+                if (date.isBefore(today)) continue;
+
                 Map<String, Object> update = new HashMap<>();
                 update.put("property_id", channexPropertyId);
                 update.put("rate_plan_id", channexRatePlanId);
-                update.put("date", String.format("%04d-%02d-%02d", year, month, day));
+                update.put("date", date.toString());
                 update.put("rate", value);
                 updates.add(update);
             }
@@ -231,14 +243,19 @@ public class ChannexSyncService {
         
         // Group restrictions by date for this specific rate plan
         Map<String, Map<String, Object>> dateUpdates = new HashMap<>();
+        LocalDate today = LocalDate.now();
+        int daysInMonth = java.time.YearMonth.of(year, month).lengthOfMonth();
 
         for (RoomRestrictionMonthlyEntity r : restrictions) {
             if (!ratePlanId.equals(r.getRatePlanId())) continue;
 
-            for (int day = 1; day <= 31; day++) {
+            for (int day = 1; day <= daysInMonth; day++) {
                 String value = r.getCol(day);
                 if (value != null) {
-                    String dateStr = String.format("%04d-%02d-%02d", year, month, day);
+                    LocalDate date = LocalDate.of(year, month, day);
+                    if (date.isBefore(today)) continue;
+
+                    String dateStr = date.toString();
                     Map<String, Object> update = dateUpdates.computeIfAbsent(dateStr, k -> {
                         Map<String, Object> m = new HashMap<>();
                         m.put("property_id", channexPropertyId);
