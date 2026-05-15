@@ -25,24 +25,28 @@ CREATE TABLE IF NOT EXISTS products (
 
 CREATE TABLE IF NOT EXISTS properties (
                                           id            VARCHAR(36)  NOT NULL,
+    channex_id    VARCHAR(64)  NULL,
     data_json     LONGTEXT     NOT NULL,
     deleted       BIT(1)       NOT NULL,
     created_date  DATETIME(6)  NOT NULL,
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    KEY idx_properties_deleted (deleted)
+    KEY idx_properties_deleted (deleted),
+    KEY idx_properties_channex_id (channex_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS room_types (
                                           id            VARCHAR(36)  NOT NULL,
     property_id   VARCHAR(36)  NULL,
+    channex_id    VARCHAR(64)  NULL,
     data_json     LONGTEXT     NOT NULL,
     deleted       BIT(1)       NOT NULL,
     created_date  DATETIME(6)  NOT NULL,
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
     KEY idx_room_types_deleted (deleted),
-    KEY idx_room_types_property_id (property_id)
+    KEY idx_room_types_property_id (property_id),
+    KEY idx_room_types_channex_id (channex_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rooms (
@@ -67,12 +71,14 @@ CREATE TABLE IF NOT EXISTS guests (
 
 CREATE TABLE IF NOT EXISTS reservations (
                                             id            VARCHAR(36)  NOT NULL,
+    channex_id    VARCHAR(64)  NULL,
     data_json     LONGTEXT     NOT NULL,
     deleted       BIT(1)       NOT NULL,
     created_date  DATETIME(6)  NOT NULL,
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    KEY idx_reservations_deleted (deleted)
+    KEY idx_reservations_deleted (deleted),
+    KEY idx_reservations_channex_id (channex_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS policies (
@@ -88,6 +94,7 @@ CREATE TABLE IF NOT EXISTS policies (
 CREATE TABLE IF NOT EXISTS rate_plans (
                                           id            VARCHAR(36)  NOT NULL,
     property_id            VARCHAR(36)  NULL,
+    channex_id             VARCHAR(64)  NULL,
     cancellation_policy_id VARCHAR(36)  NULL,
     surcharge_policy_id    VARCHAR(36)  NULL,
     data_json     LONGTEXT     NOT NULL,
@@ -96,7 +103,8 @@ CREATE TABLE IF NOT EXISTS rate_plans (
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
     KEY idx_rate_plans_deleted (deleted),
-    KEY idx_rate_plans_property_id (property_id)
+    KEY idx_rate_plans_property_id (property_id),
+    KEY idx_rate_plans_channex_id (channex_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rate_plan_room_types (

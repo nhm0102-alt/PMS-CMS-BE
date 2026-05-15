@@ -24,6 +24,7 @@ public class RatePlanServiceImpl extends AbstractRestEntityServiceImpl<RatePlanE
     protected void syncEntityWithData(RatePlanEntity entity, Map<String, Object> data) {
         if (data != null) {
             entity.setPropertyId((String) data.get("property_id"));
+            entity.setChannexId((String) data.get("channex_id"));
             entity.setCancellationPolicyId((String) data.get("cancellation_policy_id"));
             entity.setSurchargePolicyId((String) data.get("surcharge_policy_id"));
         }

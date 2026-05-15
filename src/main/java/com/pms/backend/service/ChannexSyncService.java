@@ -82,11 +82,11 @@ public class ChannexSyncService {
         String channexBookingId = (String) channexBooking.get("id");
         String status = (String) channexBooking.get("status");
         
-        PropertyEntity property = findByChannexId(propertyRepository, channexPropertyId)
+        PropertyEntity property = propertyRepository.findByChannexIdAndDeletedFalse(channexPropertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found for Channex ID: " + channexPropertyId));
 
         // Find existing reservation by Channex ID to handle updates
-        ReservationEntity reservation = findByChannexId(reservationRepository, channexBookingId)
+        ReservationEntity reservation = reservationRepository.findByChannexIdAndDeletedFalse(channexBookingId)
                 .orElseGet(ReservationEntity::new);
 
         Map<String, Object> resData = reservation.getDataJson() != null ? 
@@ -111,10 +111,11 @@ public class ChannexSyncService {
             String channexRoomTypeId = (String) firstRoom.get("room_type_id");
             String channexRatePlanId = (String) firstRoom.get("rate_plan_id");
 
-            findByChannexId(roomTypeRepository, channexRoomTypeId).ifPresent(rt -> resData.put("room_type_id", rt.getId()));
-            findByChannexId(ratePlanRepository, channexRatePlanId).ifPresent(rp -> resData.put("rate_plan_id", rp.getId()));
+            roomTypeRepository.findByChannexIdAndDeletedFalse(channexRoomTypeId).ifPresent(rt -> resData.put("room_type_id", rt.getId()));
+            ratePlanRepository.findByChannexIdAndDeletedFalse(channexRatePlanId).ifPresent(rp -> resData.put("rate_plan_id", rp.getId()));
         }
 
+        reservation.setChannexId(channexBookingId);
         reservation.setDataJson(objectMapper.writeValueAsString(resData));
         reservationRepository.save(reservation);
 
@@ -137,26 +138,11 @@ public class ChannexSyncService {
         }
     }
 
-    private <T extends BaseJsonEntity> Optional<T> findByChannexId(SoftDeleteRepository<T> repo, String channexId) {
-        if (channexId == null) return Optional.empty();
-        return repo.findByDeletedFalse().stream()
-                .filter(e -> {
-                    try {
-                        Map<String, Object> data = objectMapper.readValue(e.getDataJson(), new TypeReference<>() {});
-                        return channexId.equals(data.get("channex_id"));
-                    } catch (Exception ex) {
-                        return false;
-                    }
-                })
-                .findFirst();
-    }
-
     @Transactional
     public void pushAvailability(String roomTypeId, int year, int month) throws Exception {
         RoomTypeEntity roomType = roomTypeRepository.findById(roomTypeId)
                 .orElseThrow(() -> new RuntimeException("Room type not found"));
-        Map<String, Object> rtData = objectMapper.readValue(roomType.getDataJson(), new TypeReference<>() {});
-        String channexRoomTypeId = (String) rtData.get("channex_id");
+        String channexRoomTypeId = roomType.getChannexId();
 
         if (channexRoomTypeId == null) return;
 
@@ -185,8 +171,7 @@ public class ChannexSyncService {
     public void pushRates(String ratePlanId, int year, int month) throws Exception {
         RatePlanEntity ratePlan = ratePlanRepository.findById(ratePlanId)
                 .orElseThrow(() -> new RuntimeException("Rate plan not found"));
-        Map<String, Object> rpData = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
-        String channexRatePlanId = (String) rpData.get("channex_id");
+        String channexRatePlanId = ratePlan.getChannexId();
 
         if (channexRatePlanId == null) return;
 
@@ -215,13 +200,12 @@ public class ChannexSyncService {
     public void pushRestrictions(String roomTypeId, String ratePlanId, int year, int month) throws Exception {
         RatePlanEntity ratePlan = ratePlanRepository.findById(ratePlanId)
                 .orElseThrow(() -> new RuntimeException("Rate plan not found"));
-        Map<String, Object> rpData = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
-        String channexRatePlanId = (String) rpData.get("channex_id");
+        String channexRatePlanId = ratePlan.getChannexId();
 
         if (channexRatePlanId == null) return;
 
         List<RoomRestrictionMonthlyEntity> restrictions = restrictionRepository.findByPropertyIdAndInYearAndInMonth(
-                (String) rpData.get("property_id"), year, month);
+                ratePlan.getPropertyId(), year, month);
 
         List<Map<String, Object>> updates = new ArrayList<>();
         
@@ -274,30 +258,13 @@ public class ChannexSyncService {
             Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
             String propertyId = property.getId();
 
-            List<RoomTypeEntity> roomTypes = roomTypeRepository.findByDeletedFalse().stream()
-                    .filter(rt -> {
-                        try {
-                            Map<String, Object> data = objectMapper.readValue(rt.getDataJson(), new TypeReference<>() {});
-                            return propertyId.equals(data.get("property_id"));
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    }).toList();
+            List<RoomTypeEntity> roomTypes = roomTypeRepository.findByPropertyIdAndDeletedFalse(propertyId);
 
             for (RoomTypeEntity rt : roomTypes) {
                 syncRoomType(rt.getId());
                 
                 String rtId = rt.getId();
-                List<RatePlanEntity> ratePlans = ratePlanRepository.findByDeletedFalse().stream()
-                        .filter(rp -> {
-                            try {
-                                Map<String, Object> data = objectMapper.readValue(rp.getDataJson(), new TypeReference<>() {});
-                                List<String> rtIds = (List<String>) data.get("room_type_ids");
-                                return rtIds != null && rtIds.contains(rtId);
-                            } catch (Exception e) {
-                                return false;
-                            }
-                        }).toList();
+                List<RatePlanEntity> ratePlans = ratePlanRepository.findByRoomTypeIdAndDeletedFalse(rtId);
 
                 for (RatePlanEntity rp : ratePlans) {
                     syncRatePlan(rp.getId());
@@ -323,8 +290,9 @@ public class ChannexSyncService {
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found"));
 
+        if (property.getChannexId() != null) return;
+
         Map<String, Object> data = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
-        if (data.containsKey("channex_id")) return;
 
         Map<String, Object> channexData = new HashMap<>();
         channexData.put("title", data.get("name"));
@@ -336,6 +304,7 @@ public class ChannexSyncService {
         String channexId = (String) hotel.get("id");
 
         data.put("channex_id", channexId);
+        property.setChannexId(channexId);
         property.setDataJson(objectMapper.writeValueAsString(data));
         propertyRepository.save(property);
     }
@@ -345,14 +314,18 @@ public class ChannexSyncService {
         RoomTypeEntity roomType = roomTypeRepository.findById(roomTypeId)
                 .orElseThrow(() -> new RuntimeException("Room type not found"));
 
-        Map<String, Object> data = objectMapper.readValue(roomType.getDataJson(), new TypeReference<>() {});
-        if (data.containsKey("channex_id")) return;
+        if (roomType.getChannexId() != null) return;
 
-        String propertyId = (String) data.get("property_id");
+        Map<String, Object> data = objectMapper.readValue(roomType.getDataJson(), new TypeReference<>() {});
+
+        String propertyId = roomType.getPropertyId();
+        if (propertyId == null) {
+            propertyId = (String) data.get("property_id");
+        }
+        
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found"));
-        Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
-        String channexPropertyId = (String) propData.get("channex_id");
+        String channexPropertyId = property.getChannexId();
 
         if (channexPropertyId == null) throw new RuntimeException("Property must be synced to Channex first");
 
@@ -371,6 +344,7 @@ public class ChannexSyncService {
         String channexId = (String) rt.get("id");
 
         data.put("channex_id", channexId);
+        roomType.setChannexId(channexId);
         roomType.setDataJson(objectMapper.writeValueAsString(data));
         roomType.setPropertyId(propertyId);
         roomTypeRepository.save(roomType);
@@ -381,8 +355,9 @@ public class ChannexSyncService {
         RatePlanEntity ratePlan = ratePlanRepository.findById(ratePlanId)
                 .orElseThrow(() -> new RuntimeException("Rate plan not found"));
 
+        if (ratePlan.getChannexId() != null) return;
+
         Map<String, Object> data = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
-        if (data.containsKey("channex_id")) return;
 
         List<String> roomTypeIds = (List<String>) data.get("room_type_ids");
         if (roomTypeIds == null || roomTypeIds.isEmpty()) return;
@@ -394,16 +369,19 @@ public class ChannexSyncService {
         
         RoomTypeEntity roomType = roomTypeRepository.findById(roomTypeId)
                 .orElseThrow(() -> new RuntimeException("Room type not found"));
-        Map<String, Object> rtData = objectMapper.readValue(roomType.getDataJson(), new TypeReference<>() {});
-        String channexRoomTypeId = (String) rtData.get("channex_id");
+        String channexRoomTypeId = roomType.getChannexId();
 
         if (channexRoomTypeId == null) throw new RuntimeException("Room type must be synced to Channex first");
 
-        String propertyId = (String) rtData.get("property_id");
+        String propertyId = ratePlan.getPropertyId();
+        if (propertyId == null) {
+            propertyId = roomType.getPropertyId();
+        }
+
+
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found"));
-        Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
-        String channexPropertyId = (String) propData.get("channex_id");
+        String channexPropertyId = property.getChannexId();
 
         if (channexPropertyId == null) throw new RuntimeException("Property must be synced to Channex first");
 
@@ -411,10 +389,10 @@ public class ChannexSyncService {
         channexData.put("title", data.get("name"));
         channexData.put("property_id", channexPropertyId);
         channexData.put("room_type_id", channexRoomTypeId);
-        channexData.put("currency", rtData.getOrDefault("currency", "USD"));
+        channexData.put("currency", data.getOrDefault("currency", "USD"));
         
         // Add required options
-        int maxOcc = (int) rtData.getOrDefault("max_occupancy", 2);
+        int maxOcc = (int) data.getOrDefault("max_occupancy", 2);
         List<Map<String, Object>> options = new ArrayList<>();
         Map<String, Object> primaryOption = new HashMap<>();
         primaryOption.put("occupancy", maxOcc);
@@ -428,6 +406,7 @@ public class ChannexSyncService {
         String channexId = (String) rp.get("id");
 
         data.put("channex_id", channexId);
+        ratePlan.setChannexId(channexId);
         ratePlan.setDataJson(objectMapper.writeValueAsString(data));
         ratePlan.setPropertyId(propertyId);
         ratePlan.setCancellationPolicyId((String) data.get("cancellation_policy_id"));

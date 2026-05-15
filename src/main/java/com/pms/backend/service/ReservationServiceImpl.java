@@ -25,6 +25,13 @@ public class ReservationServiceImpl extends AbstractRestEntityServiceImpl<Reserv
     }
 
     @Override
+    protected void syncEntityWithData(ReservationEntity entity, Map<String, Object> data) {
+        if (data != null) {
+            entity.setChannexId((String) data.get("channex_id"));
+        }
+    }
+
+    @Override
     protected void afterSave(ReservationEntity entity, Map<String, Object> data) {
         try {
             // Only update allotment for new reservations to avoid double counting on updates

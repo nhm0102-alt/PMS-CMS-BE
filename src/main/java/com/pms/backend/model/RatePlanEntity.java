@@ -10,6 +10,9 @@ public class RatePlanEntity extends BaseJsonEntity {
     @Column(name = "property_id", length = 36)
     private String propertyId;
 
+    @Column(name = "channex_id", length = 64)
+    private String channexId;
+
     @Column(name = "cancellation_policy_id", length = 36)
     private String cancellationPolicyId;
 
@@ -22,6 +25,14 @@ public class RatePlanEntity extends BaseJsonEntity {
 
     public void setPropertyId(String propertyId) {
         this.propertyId = propertyId;
+    }
+
+    public String getChannexId() {
+        return channexId;
+    }
+
+    public void setChannexId(String channexId) {
+        this.channexId = channexId;
     }
 
     public String getCancellationPolicyId() {
