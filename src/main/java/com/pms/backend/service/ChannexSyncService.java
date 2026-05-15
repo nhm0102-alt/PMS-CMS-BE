@@ -360,24 +360,27 @@ public class ChannexSyncService {
         List<String> roomTypeIds = ratePlanRepository.findRoomTypeIdsByRatePlanId(ratePlanId);
         if (roomTypeIds == null || roomTypeIds.isEmpty()) return;
 
+        List<String> channexRoomTypeIds = new ArrayList<>();
+        for (String rtId : roomTypeIds) {
+            roomTypeRepository.findById(rtId).ifPresent(rt -> {
+                if (rt.getChannexId() != null) {
+                    channexRoomTypeIds.add(rt.getChannexId());
+                }
+            });
+        }
+
+        if (channexRoomTypeIds.isEmpty()) throw new RuntimeException("At least one Room type must be synced to Channex first");
+
         Map<String, Object> data = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
-
-        // Channex Rate Plan is usually linked to one Room Type, but our PMS supports many.
-        // For sync, we might need to create multiple rate plans on Channex or pick one.
-        // Assuming we pick the first one for simplicity in this demo sync logic.
-        String roomTypeId = roomTypeIds.get(0);
-        
-        RoomTypeEntity roomType = roomTypeRepository.findById(roomTypeId)
-                .orElseThrow(() -> new RuntimeException("Room type not found"));
-        String channexRoomTypeId = roomType.getChannexId();
-
-        if (channexRoomTypeId == null) throw new RuntimeException("Room type must be synced to Channex first");
 
         String propertyId = ratePlan.getPropertyId();
         if (propertyId == null) {
-            propertyId = roomType.getPropertyId();
+            // Fallback to first room type's property if not set
+            RoomTypeEntity firstRt = roomTypeRepository.findById(roomTypeIds.get(0)).orElse(null);
+            if (firstRt != null) propertyId = firstRt.getPropertyId();
         }
 
+        if (propertyId == null) throw new RuntimeException("Property ID not found for Rate Plan");
 
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found"));
@@ -388,7 +391,7 @@ public class ChannexSyncService {
         Map<String, Object> channexData = new HashMap<>();
         channexData.put("title", data.get("name"));
         channexData.put("property_id", channexPropertyId);
-        channexData.put("room_type_id", channexRoomTypeId);
+        channexData.put("room_type_ids", channexRoomTypeIds);
         channexData.put("currency", data.getOrDefault("currency", "USD"));
         
         // Add required options
