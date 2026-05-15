@@ -17,8 +17,11 @@ public interface ChannexApi {
     @POST("rate_plans")
     Call<Map<String, Object>> createRatePlan(@Body Map<String, Object> body);
 
-    @POST("ari")
-    Call<Void> pushARI(@Body Map<String, Object> body);
+    @POST("availability")
+    Call<Void> updateAvailability(@Body Map<String, Object> body);
+
+    @POST("restrictions")
+    Call<Void> updateRestrictions(@Body Map<String, Object> body);
 
     @GET("booking_revisions")
     Call<Map<String, Object>> getBookingRevisions();

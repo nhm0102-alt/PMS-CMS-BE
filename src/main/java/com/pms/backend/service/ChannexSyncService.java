@@ -149,6 +149,11 @@ public class ChannexSyncService {
 
         if (channexRoomTypeId == null) return;
 
+        PropertyEntity property = propertyRepository.findById(roomType.getPropertyId())
+                .orElseThrow(() -> new RuntimeException("Property not found"));
+        String channexPropertyId = property.getChannexId();
+        if (channexPropertyId == null) return;
+
         RoomAllotmentMonthlyEntity allotment = allotmentRepository.findByRoomTypeIdAndInYearAndInMonth(roomTypeId, year, month)
                 .orElse(null);
         if (allotment == null) return;
@@ -158,6 +163,7 @@ public class ChannexSyncService {
             Integer value = allotment.getCol(day);
             if (value != null) {
                 Map<String, Object> update = new HashMap<>();
+                update.put("property_id", channexPropertyId);
                 update.put("room_type_id", channexRoomTypeId);
                 update.put("date", String.format("%04d-%02d-%02d", year, month, day));
                 update.put("availability", value);
@@ -166,7 +172,7 @@ public class ChannexSyncService {
         }
 
         if (!updates.isEmpty()) {
-            channexClient.pushARI(Map.of("values", updates));
+            channexClient.updateAvailability(Map.of("values", updates));
         }
     }
 
@@ -178,6 +184,11 @@ public class ChannexSyncService {
 
         if (channexRatePlanId == null) return;
 
+        PropertyEntity property = propertyRepository.findById(ratePlan.getPropertyId())
+                .orElseThrow(() -> new RuntimeException("Property not found"));
+        String channexPropertyId = property.getChannexId();
+        if (channexPropertyId == null) return;
+
         RoomRateMonthlyEntity rate = rateRepository.findByRatePlanIdAndInYearAndInMonth(ratePlanId, year, month)
                 .orElse(null);
         if (rate == null) return;
@@ -187,15 +198,16 @@ public class ChannexSyncService {
             java.math.BigDecimal value = rate.getCol(day);
             if (value != null) {
                 Map<String, Object> update = new HashMap<>();
+                update.put("property_id", channexPropertyId);
                 update.put("rate_plan_id", channexRatePlanId);
                 update.put("date", String.format("%04d-%02d-%02d", year, month, day));
-                update.put("amount", value);
+                update.put("rate", value);
                 updates.add(update);
             }
         }
 
         if (!updates.isEmpty()) {
-            channexClient.pushARI(Map.of("values", updates));
+            channexClient.updateRestrictions(Map.of("values", updates));
         }
     }
 
@@ -206,6 +218,11 @@ public class ChannexSyncService {
         String channexRatePlanId = ratePlan.getChannexId();
 
         if (channexRatePlanId == null) return;
+
+        PropertyEntity property = propertyRepository.findById(ratePlan.getPropertyId())
+                .orElseThrow(() -> new RuntimeException("Property not found"));
+        String channexPropertyId = property.getChannexId();
+        if (channexPropertyId == null) return;
 
         List<RoomRestrictionMonthlyEntity> restrictions = restrictionRepository.findByPropertyIdAndInYearAndInMonth(
                 ratePlan.getPropertyId(), year, month);
@@ -224,6 +241,7 @@ public class ChannexSyncService {
                     String dateStr = String.format("%04d-%02d-%02d", year, month, day);
                     Map<String, Object> update = dateUpdates.computeIfAbsent(dateStr, k -> {
                         Map<String, Object> m = new HashMap<>();
+                        m.put("property_id", channexPropertyId);
                         m.put("rate_plan_id", channexRatePlanId);
                         m.put("date", dateStr);
                         return m;
@@ -231,7 +249,7 @@ public class ChannexSyncService {
 
                     switch (r.getRestrictionType()) {
                         case "is_closed":
-                            update.put("stop_sales", "1".equals(value) || "true".equalsIgnoreCase(value) ? 1 : 0);
+                            update.put("stop_sell", "1".equals(value) || "true".equalsIgnoreCase(value) ? 1 : 0);
                             break;
                         case "min_night":
                             update.put("min_stay_arrival", Integer.parseInt(value));
@@ -239,16 +257,13 @@ public class ChannexSyncService {
                         case "max_night":
                             update.put("max_stay_arrival", Integer.parseInt(value));
                             break;
-                        case "cutoff":
-                            update.put("min_notice_period", Integer.parseInt(value));
-                            break;
                     }
                 }
             }
         }
 
         if (!dateUpdates.isEmpty()) {
-            channexClient.pushARI(Map.of("values", new ArrayList<>(dateUpdates.values())));
+            channexClient.updateRestrictions(Map.of("values", new ArrayList<>(dateUpdates.values())));
         }
     }
 

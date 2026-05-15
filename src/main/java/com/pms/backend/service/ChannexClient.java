@@ -73,8 +73,12 @@ public class ChannexClient {
         return channexApi.createRatePlan(Map.of("rate_plan", ratePlanData)).execute().body();
     }
 
-    public void pushARI(Map<String, Object> ariData) throws IOException {
-        channexApi.pushARI(ariData).execute();
+    public void updateAvailability(Map<String, Object> data) throws IOException {
+        channexApi.updateAvailability(data).execute();
+    }
+
+    public void updateRestrictions(Map<String, Object> data) throws IOException {
+        channexApi.updateRestrictions(data).execute();
     }
 
     public Map<String, Object> getBookingRevisions() throws IOException {
