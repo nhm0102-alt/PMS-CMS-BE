@@ -408,8 +408,6 @@ public class ChannexSyncService {
         ratePlan.setChannexId(channexId);
         ratePlan.setDataJson(objectMapper.writeValueAsString(data));
         ratePlan.setPropertyId(propertyId);
-        ratePlan.setCancellationPolicyId((String) data.get("cancellation_policy_id"));
-        ratePlan.setSurchargePolicyId((String) data.get("surcharge_policy_id"));
         ratePlanRepository.save(ratePlan);
     }
 }

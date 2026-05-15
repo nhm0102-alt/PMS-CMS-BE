@@ -13,11 +13,13 @@ import java.util.List;
 public class RatePlanServiceImpl extends AbstractRestEntityServiceImpl<RatePlanEntity> implements RatePlanService {
     private final ChannexSyncService channexSyncService;
     private final JdbcTemplate jdbcTemplate;
+    private final RatePlanRepository ratePlanRepository;
 
     public RatePlanServiceImpl(RatePlanRepository repository, ObjectMapper objectMapper, ChannexSyncService channexSyncService, JdbcTemplate jdbcTemplate) {
         super(repository, objectMapper, RatePlanEntity::new);
         this.channexSyncService = channexSyncService;
         this.jdbcTemplate = jdbcTemplate;
+        this.ratePlanRepository = repository;
     }
 
     @Override
@@ -42,7 +44,7 @@ public class RatePlanServiceImpl extends AbstractRestEntityServiceImpl<RatePlanE
         response.put("surcharge_policy_id", entity.getSurchargePolicyId());
         
         if (entity.getRoomTypeIds() == null) {
-            entity.setRoomTypeIds(repository.findRoomTypeIdsByRatePlanId(entity.getId()));
+            entity.setRoomTypeIds(ratePlanRepository.findRoomTypeIdsByRatePlanId(entity.getId()));
         }
         response.put("room_type_ids", entity.getRoomTypeIds());
     }
