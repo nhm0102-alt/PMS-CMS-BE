@@ -24,6 +24,7 @@ public class ChannexSyncService {
     private final RoomAllotmentService roomAllotmentService;
     private final RoomAllotmentMonthlyRepository allotmentRepository;
     private final RoomRateMonthlyRepository rateRepository;
+    private final RoomRestrictionMonthlyRepository restrictionRepository;
     private final ObjectMapper objectMapper;
 
     public ChannexSyncService(ChannexClient channexClient,
@@ -34,6 +35,7 @@ public class ChannexSyncService {
                              RoomAllotmentService roomAllotmentService,
                              RoomAllotmentMonthlyRepository allotmentRepository,
                              RoomRateMonthlyRepository rateRepository,
+                             RoomRestrictionMonthlyRepository restrictionRepository,
                              ObjectMapper objectMapper) {
         this.channexClient = channexClient;
         this.propertyRepository = propertyRepository;
@@ -43,10 +45,11 @@ public class ChannexSyncService {
         this.roomAllotmentService = roomAllotmentService;
         this.allotmentRepository = allotmentRepository;
         this.rateRepository = rateRepository;
+        this.restrictionRepository = restrictionRepository;
         this.objectMapper = objectMapper;
     }
 
-    @Scheduled(fixedDelay = 60000) // Every 5 minutes
+    @Scheduled(fixedDelay = 60000) // Every 1 minute
     public void scheduledPullBookings() {
         try {
             pullBookings();
@@ -209,6 +212,111 @@ public class ChannexSyncService {
     }
 
     @Transactional
+    public void pushRestrictions(String roomTypeId, String ratePlanId, int year, int month) throws Exception {
+        RatePlanEntity ratePlan = ratePlanRepository.findById(ratePlanId)
+                .orElseThrow(() -> new RuntimeException("Rate plan not found"));
+        Map<String, Object> rpData = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
+        String channexRatePlanId = (String) rpData.get("channex_id");
+
+        if (channexRatePlanId == null) return;
+
+        List<RoomRestrictionMonthlyEntity> restrictions = restrictionRepository.findByPropertyIdAndInYearAndInMonth(
+                (String) rpData.get("property_id"), year, month);
+
+        List<Map<String, Object>> updates = new ArrayList<>();
+        
+        // Group restrictions by date for this specific rate plan
+        Map<String, Map<String, Object>> dateUpdates = new HashMap<>();
+
+        for (RoomRestrictionMonthlyEntity r : restrictions) {
+            if (!ratePlanId.equals(r.getRatePlanId())) continue;
+
+            for (int day = 1; day <= 31; day++) {
+                String value = r.getCol(day);
+                if (value != null) {
+                    String dateStr = String.format("%04d-%02d-%02d", year, month, day);
+                    Map<String, Object> update = dateUpdates.computeIfAbsent(dateStr, k -> {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("rate_plan_id", channexRatePlanId);
+                        m.put("date", dateStr);
+                        return m;
+                    });
+
+                    switch (r.getRestrictionType()) {
+                        case "is_closed":
+                            update.put("stop_sales", "1".equals(value) || "true".equalsIgnoreCase(value) ? 1 : 0);
+                            break;
+                        case "min_night":
+                            update.put("min_stay_arrival", Integer.parseInt(value));
+                            break;
+                        case "max_night":
+                            update.put("max_stay_arrival", Integer.parseInt(value));
+                            break;
+                        case "cutoff":
+                            update.put("min_notice_period", Integer.parseInt(value));
+                            break;
+                    }
+                }
+            }
+        }
+
+        if (!dateUpdates.isEmpty()) {
+            channexClient.pushARI(Map.of("values", new ArrayList<>(dateUpdates.values())));
+        }
+    }
+
+    @Transactional
+    public void syncAllData() throws Exception {
+        List<PropertyEntity> properties = propertyRepository.findByDeletedFalse();
+        for (PropertyEntity property : properties) {
+            syncProperty(property.getId());
+            
+            Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
+            String propertyId = property.getId();
+
+            List<RoomTypeEntity> roomTypes = roomTypeRepository.findByDeletedFalse().stream()
+                    .filter(rt -> {
+                        try {
+                            Map<String, Object> data = objectMapper.readValue(rt.getDataJson(), new TypeReference<>() {});
+                            return propertyId.equals(data.get("property_id"));
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    }).toList();
+
+            for (RoomTypeEntity rt : roomTypes) {
+                syncRoomType(rt.getId());
+                
+                List<RatePlanEntity> ratePlans = ratePlanRepository.findByDeletedFalse().stream()
+                        .filter(rp -> {
+                            try {
+                                Map<String, Object> data = objectMapper.readValue(rp.getDataJson(), new TypeReference<>() {});
+                                return rt.getId().equals(data.get("room_type_id"));
+                            } catch (Exception e) {
+                                return false;
+                            }
+                        }).toList();
+
+                for (RatePlanEntity rp : ratePlans) {
+                    syncRatePlan(rp.getId());
+                    
+                    // Push ARI for next 3 months
+                    LocalDate now = LocalDate.now();
+                    for (int i = 0; i < 3; i++) {
+                        LocalDate d = now.plusMonths(i);
+                        int year = d.getYear();
+                        int month = d.getMonthValue();
+                        
+                        pushAvailability(rt.getId(), year, month);
+                        pushRates(rp.getId(), year, month);
+                        pushRestrictions(rt.getId(), rp.getId(), year, month);
+                    }
+                }
+            }
+        }
+    }
+
+    @Transactional
     public void syncProperty(String propertyId) throws Exception {
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("Property not found"));
@@ -249,8 +357,12 @@ public class ChannexSyncService {
         Map<String, Object> channexData = new HashMap<>();
         channexData.put("title", data.get("name"));
         channexData.put("property_id", channexPropertyId);
-        channexData.put("occ_base", data.getOrDefault("base_occupancy", 2));
-        channexData.put("occ_max", data.getOrDefault("max_occupancy", 2));
+        channexData.put("description", data.get("description"));
+        channexData.put("count_of_rooms", data.getOrDefault("total_rooms", 1));
+        channexData.put("occupancy", data.getOrDefault("standard_adults", 2));
+        channexData.put("occ_adults", data.getOrDefault("max_adults", 2));
+        channexData.put("occ_children", data.getOrDefault("max_children", 0));
+        channexData.put("occ_infants", data.getOrDefault("max_infants", 0));
 
         Map<String, Object> response = channexClient.createRoomType(channexData);
         Map<String, Object> rt = (Map<String, Object>) response.get("data");
@@ -277,10 +389,29 @@ public class ChannexSyncService {
 
         if (channexRoomTypeId == null) throw new RuntimeException("Room type must be synced to Channex first");
 
+        String propertyId = (String) rtData.get("property_id");
+        PropertyEntity property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new RuntimeException("Property not found"));
+        Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
+        String channexPropertyId = (String) propData.get("channex_id");
+
+        if (channexPropertyId == null) throw new RuntimeException("Property must be synced to Channex first");
+
         Map<String, Object> channexData = new HashMap<>();
         channexData.put("title", data.get("name"));
+        channexData.put("property_id", channexPropertyId);
         channexData.put("room_type_id", channexRoomTypeId);
         channexData.put("currency", rtData.getOrDefault("currency", "USD"));
+        
+        // Add required options
+        int maxOcc = (int) rtData.getOrDefault("max_occupancy", 2);
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> primaryOption = new HashMap<>();
+        primaryOption.put("occupancy", maxOcc);
+        primaryOption.put("is_primary", true);
+        primaryOption.put("rate", 0);
+        options.add(primaryOption);
+        channexData.put("options", options);
 
         Map<String, Object> response = channexClient.createRatePlan(channexData);
         Map<String, Object> rp = (Map<String, Object>) response.get("data");

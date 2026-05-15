@@ -5,24 +5,24 @@ import retrofit2.http.*;
 import java.util.Map;
 
 public interface ChannexApi {
-    @GET("hotels")
-    Call<Map<String, Object>> getProperties(@Header("user-api-key") String apiKey);
+    @GET("properties")
+    Call<Map<String, Object>> getProperties();
 
-    @POST("hotels")
-    Call<Map<String, Object>> createProperty(@Header("user-api-key") String apiKey, @Body Map<String, Object> body);
+    @POST("properties")
+    Call<Map<String, Object>> createProperty(@Body Map<String, Object> body);
 
     @POST("room_types")
-    Call<Map<String, Object>> createRoomType(@Header("user-api-key") String apiKey, @Body Map<String, Object> body);
+    Call<Map<String, Object>> createRoomType(@Body Map<String, Object> body);
 
     @POST("rate_plans")
-    Call<Map<String, Object>> createRatePlan(@Header("user-api-key") String apiKey, @Body Map<String, Object> body);
+    Call<Map<String, Object>> createRatePlan(@Body Map<String, Object> body);
 
     @POST("ari")
-    Call<Void> pushARI(@Header("user-api-key") String apiKey, @Body Map<String, Object> body);
+    Call<Void> pushARI(@Body Map<String, Object> body);
 
     @GET("booking_revisions")
-    Call<Map<String, Object>> getBookingRevisions(@Header("user-api-key") String apiKey);
+    Call<Map<String, Object>> getBookingRevisions();
 
     @POST("booking_revisions/{id}/ack")
-    Call<Void> acknowledgeBookingRevision(@Header("user-api-key") String apiKey, @Path("id") String revisionId);
+    Call<Void> acknowledgeBookingRevision(@Path("id") String revisionId);
 }

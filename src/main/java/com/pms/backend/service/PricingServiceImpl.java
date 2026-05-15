@@ -199,6 +199,12 @@ public class PricingServiceImpl implements PricingService {
         updateRestriction(propertyId, rtId, rpId, year, month, day, "min_night", request.get("min_night"));
         updateRestriction(propertyId, rtId, rpId, year, month, day, "max_night", request.get("max_night"));
         updateRestriction(propertyId, rtId, rpId, year, month, day, "cutoff", request.get("cutoff"));
+
+        try {
+            channexSyncService.pushRestrictions(rtId, rpId, year, month);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void updateRestriction(String propertyId, String rtId, String rpId, int year, int month, int day, String type, Object value) {

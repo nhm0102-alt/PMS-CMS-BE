@@ -66,6 +66,7 @@ public class SecurityConfig {
                 .requestMatchers("/license-transactions/**").permitAll()
                 .requestMatchers("/users/**").permitAll()
                 .requestMatchers("/ota-channels/**").permitAll()
+                .requestMatchers("/api/channex/**").permitAll()
                 .requestMatchers("/pricing/**").permitAll()
                 .requestMatchers("/integrations/**").permitAll()
                 .requestMatchers("/api/integrations/**").permitAll()

@@ -4,6 +4,9 @@ import com.pms.backend.config.AppProperties;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.logging.HttpLoggingInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
@@ -14,11 +17,15 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class ChannexClient {
+    private static final Logger log = LoggerFactory.getLogger(ChannexClient.class);
     private final ChannexApi channexApi;
     private final AppProperties appProperties;
 
     public ChannexClient(AppProperties appProperties) {
         this.appProperties = appProperties;
+
+        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor(message -> log.info(message));
+        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         ConnectionPool connectionPool = new ConnectionPool(10, 5, TimeUnit.MINUTES);
 
@@ -26,6 +33,7 @@ public class ChannexClient {
                 .connectionPool(connectionPool)
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
+                .addInterceptor(loggingInterceptor)
                 .addInterceptor(chain -> {
                     Request original = chain.request();
                     Request request = original.newBuilder()
@@ -50,30 +58,30 @@ public class ChannexClient {
     }
 
     public Map<String, Object> getProperties() throws IOException {
-        return channexApi.getProperties(appProperties.channex().apiKey()).execute().body();
+        return channexApi.getProperties().execute().body();
     }
 
     public Map<String, Object> createProperty(Map<String, Object> propertyData) throws IOException {
-        return channexApi.createProperty(appProperties.channex().apiKey(), Map.of("hotel", propertyData)).execute().body();
+        return channexApi.createProperty(Map.of("property", propertyData)).execute().body();
     }
 
     public Map<String, Object> createRoomType(Map<String, Object> roomTypeData) throws IOException {
-        return channexApi.createRoomType(appProperties.channex().apiKey(), Map.of("room_type", roomTypeData)).execute().body();
+        return channexApi.createRoomType(Map.of("room_type", roomTypeData)).execute().body();
     }
 
     public Map<String, Object> createRatePlan(Map<String, Object> ratePlanData) throws IOException {
-        return channexApi.createRatePlan(appProperties.channex().apiKey(), Map.of("rate_plan", ratePlanData)).execute().body();
+        return channexApi.createRatePlan(Map.of("rate_plan", ratePlanData)).execute().body();
     }
 
     public void pushARI(Map<String, Object> ariData) throws IOException {
-        channexApi.pushARI(appProperties.channex().apiKey(), ariData).execute();
+        channexApi.pushARI(ariData).execute();
     }
 
     public Map<String, Object> getBookingRevisions() throws IOException {
-        return channexApi.getBookingRevisions(appProperties.channex().apiKey()).execute().body();
+        return channexApi.getBookingRevisions().execute().body();
     }
 
     public void acknowledgeBookingRevision(String revisionId) throws IOException {
-        channexApi.acknowledgeBookingRevision(appProperties.channex().apiKey(), revisionId).execute();
+        channexApi.acknowledgeBookingRevision(revisionId).execute();
     }
 }
