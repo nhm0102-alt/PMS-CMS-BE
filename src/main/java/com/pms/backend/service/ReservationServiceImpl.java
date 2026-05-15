@@ -27,8 +27,23 @@ public class ReservationServiceImpl extends AbstractRestEntityServiceImpl<Reserv
     @Override
     protected void syncEntityWithData(ReservationEntity entity, Map<String, Object> data) {
         if (data != null) {
-            entity.setChannexId((String) data.get("channex_id"));
+            entity.setChannexId((String) data.remove("channex_id"));
+            entity.setPropertyId((String) data.remove("property_id"));
+            entity.setRoomTypeId((String) data.remove("room_type_id"));
+            entity.setRatePlanId((String) data.remove("rate_plan_id"));
+            entity.setRoomId((String) data.remove("room_id"));
+            entity.setGuestId((String) data.remove("guest_id"));
         }
+    }
+
+    @Override
+    protected void postProcessResponse(ReservationEntity entity, Map<String, Object> response) {
+        response.put("channex_id", entity.getChannexId());
+        response.put("property_id", entity.getPropertyId());
+        response.put("room_type_id", entity.getRoomTypeId());
+        response.put("rate_plan_id", entity.getRatePlanId());
+        response.put("room_id", entity.getRoomId());
+        response.put("guest_id", entity.getGuestId());
     }
 
     @Override

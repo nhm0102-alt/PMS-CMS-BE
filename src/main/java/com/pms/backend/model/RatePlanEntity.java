@@ -19,6 +19,9 @@ public class RatePlanEntity extends BaseJsonEntity {
     @Column(name = "surcharge_policy_id", length = 36)
     private String surchargePolicyId;
 
+    @jakarta.persistence.Transient
+    private java.util.List<String> roomTypeIds;
+
     public String getPropertyId() {
         return propertyId;
     }
@@ -49,6 +52,14 @@ public class RatePlanEntity extends BaseJsonEntity {
 
     public void setSurchargePolicyId(String surchargePolicyId) {
         this.surchargePolicyId = surchargePolicyId;
+    }
+
+    public java.util.List<String> getRoomTypeIds() {
+        return roomTypeIds;
+    }
+
+    public void setRoomTypeIds(java.util.List<String> roomTypeIds) {
+        this.roomTypeIds = roomTypeIds;
     }
 }
 

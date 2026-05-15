@@ -94,8 +94,6 @@ public class ChannexSyncService {
                 new HashMap<>();
 
         // Basic mapping
-        resData.put("channex_id", channexBookingId);
-        resData.put("property_id", property.getId());
         resData.put("status", status);
         resData.put("check_in_date", channexBooking.get("arrival_date"));
         resData.put("check_out_date", channexBooking.get("departure_date"));
@@ -111,11 +109,16 @@ public class ChannexSyncService {
             String channexRoomTypeId = (String) firstRoom.get("room_type_id");
             String channexRatePlanId = (String) firstRoom.get("rate_plan_id");
 
-            roomTypeRepository.findByChannexIdAndDeletedFalse(channexRoomTypeId).ifPresent(rt -> resData.put("room_type_id", rt.getId()));
-            ratePlanRepository.findByChannexIdAndDeletedFalse(channexRatePlanId).ifPresent(rp -> resData.put("rate_plan_id", rp.getId()));
+            roomTypeRepository.findByChannexIdAndDeletedFalse(channexRoomTypeId).ifPresent(rt -> {
+                reservation.setRoomTypeId(rt.getId());
+            });
+            ratePlanRepository.findByChannexIdAndDeletedFalse(channexRatePlanId).ifPresent(rp -> {
+                reservation.setRatePlanId(rp.getId());
+            });
         }
 
         reservation.setChannexId(channexBookingId);
+        reservation.setPropertyId(property.getId());
         reservation.setDataJson(objectMapper.writeValueAsString(resData));
         reservationRepository.save(reservation);
 
@@ -123,7 +126,7 @@ public class ChannexSyncService {
         roomAllotmentService.updateAllotmentFromReservation(resData, "cancelled".equalsIgnoreCase(status));
         
         // Push updated availability to Channex
-        String roomTypeId = (String) resData.get("room_type_id");
+        String roomTypeId = reservation.getRoomTypeId();
         if (roomTypeId != null) {
             LocalDate checkIn = LocalDate.parse((String) resData.get("check_in_date"));
             LocalDate checkOut = LocalDate.parse((String) resData.get("check_out_date"));
@@ -255,7 +258,6 @@ public class ChannexSyncService {
         for (PropertyEntity property : properties) {
             syncProperty(property.getId());
             
-            Map<String, Object> propData = objectMapper.readValue(property.getDataJson(), new TypeReference<>() {});
             String propertyId = property.getId();
 
             List<RoomTypeEntity> roomTypes = roomTypeRepository.findByPropertyIdAndDeletedFalse(propertyId);
@@ -303,7 +305,6 @@ public class ChannexSyncService {
         Map<String, Object> hotel = (Map<String, Object>) response.get("data");
         String channexId = (String) hotel.get("id");
 
-        data.put("channex_id", channexId);
         property.setChannexId(channexId);
         property.setDataJson(objectMapper.writeValueAsString(data));
         propertyRepository.save(property);
@@ -343,7 +344,6 @@ public class ChannexSyncService {
         Map<String, Object> rt = (Map<String, Object>) response.get("data");
         String channexId = (String) rt.get("id");
 
-        data.put("channex_id", channexId);
         roomType.setChannexId(channexId);
         roomType.setDataJson(objectMapper.writeValueAsString(data));
         roomType.setPropertyId(propertyId);
@@ -357,10 +357,10 @@ public class ChannexSyncService {
 
         if (ratePlan.getChannexId() != null) return;
 
-        Map<String, Object> data = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
-
-        List<String> roomTypeIds = (List<String>) data.get("room_type_ids");
+        List<String> roomTypeIds = ratePlanRepository.findRoomTypeIdsByRatePlanId(ratePlanId);
         if (roomTypeIds == null || roomTypeIds.isEmpty()) return;
+
+        Map<String, Object> data = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
 
         // Channex Rate Plan is usually linked to one Room Type, but our PMS supports many.
         // For sync, we might need to create multiple rate plans on Channex or pick one.
@@ -405,7 +405,6 @@ public class ChannexSyncService {
         Map<String, Object> rp = (Map<String, Object>) response.get("data");
         String channexId = (String) rp.get("id");
 
-        data.put("channex_id", channexId);
         ratePlan.setChannexId(channexId);
         ratePlan.setDataJson(objectMapper.writeValueAsString(data));
         ratePlan.setPropertyId(propertyId);

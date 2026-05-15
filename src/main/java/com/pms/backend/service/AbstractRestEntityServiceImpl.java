@@ -31,6 +31,9 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
     protected void syncEntityWithData(E entity, Map<String, Object> data) {
     }
 
+    protected void postProcessResponse(E entity, Map<String, Object> response) {
+    }
+
     protected void afterSave(E entity, Map<String, Object> data) {
     }
 
@@ -82,8 +85,8 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         normalize(data);
         E e = entityFactory.get();
         e.setDeleted(false);
-        e.setDataJson(encode(data));
         syncEntityWithData(e, data);
+        e.setDataJson(encode(data));
         E saved = repository.save(e);
         afterSave(saved, data);
         return toResponse(saved, data);
@@ -131,8 +134,8 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
             current.putAll(body);
         }
         normalize(current);
-        r.setDataJson(encode(current));
         syncEntityWithData(r, current);
+        r.setDataJson(encode(current));
         E saved = repository.save(r);
         afterSave(saved, current);
         return toResponse(saved, current);
@@ -184,13 +187,14 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         }
     }
 
-    private static Map<String, Object> toResponse(BaseJsonEntity r, Map<String, Object> data) {
+    private Map<String, Object> toResponse(E r, Map<String, Object> data) {
         Map<String, Object> out = new LinkedHashMap<>(data == null ? Map.of() : data);
         out.put("id", r.getId());
         Instant cd = r.getCreatedDate();
         Instant ud = r.getUpdatedDate();
         out.put("created_date", (cd == null ? Instant.now() : cd).toString());
         out.put("updated_date", (ud == null ? Instant.now() : ud).toString());
+        postProcessResponse(r, out);
         return out;
     }
 

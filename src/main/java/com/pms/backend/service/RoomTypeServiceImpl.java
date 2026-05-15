@@ -19,9 +19,15 @@ public class RoomTypeServiceImpl extends AbstractRestEntityServiceImpl<RoomTypeE
     @Override
     protected void syncEntityWithData(RoomTypeEntity entity, Map<String, Object> data) {
         if (data != null) {
-            entity.setPropertyId((String) data.get("property_id"));
-            entity.setChannexId((String) data.get("channex_id"));
+            entity.setPropertyId((String) data.remove("property_id"));
+            entity.setChannexId((String) data.remove("channex_id"));
         }
+    }
+
+    @Override
+    protected void postProcessResponse(RoomTypeEntity entity, Map<String, Object> response) {
+        response.put("property_id", entity.getPropertyId());
+        response.put("channex_id", entity.getChannexId());
     }
 
     @Override

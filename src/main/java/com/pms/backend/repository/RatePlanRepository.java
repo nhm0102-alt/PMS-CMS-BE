@@ -11,5 +11,8 @@ public interface RatePlanRepository extends SoftDeleteRepository<RatePlanEntity>
                    "WHERE rprt.room_type_id = ?1 AND rp.deleted = 0", nativeQuery = true)
     List<RatePlanEntity> findByRoomTypeIdAndDeletedFalse(String roomTypeId);
 
+    @Query(value = "SELECT room_type_id FROM rate_plan_room_types WHERE rate_plan_id = ?1", nativeQuery = true)
+    List<String> findRoomTypeIdsByRatePlanId(String ratePlanId);
+
     Optional<RatePlanEntity> findByChannexIdAndDeletedFalse(String channexId);
 }

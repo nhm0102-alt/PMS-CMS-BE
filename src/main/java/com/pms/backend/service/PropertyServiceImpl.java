@@ -19,8 +19,13 @@ public class PropertyServiceImpl extends AbstractRestEntityServiceImpl<PropertyE
     @Override
     protected void syncEntityWithData(PropertyEntity entity, Map<String, Object> data) {
         if (data != null) {
-            entity.setChannexId((String) data.get("channex_id"));
+            entity.setChannexId((String) data.remove("channex_id"));
         }
+    }
+
+    @Override
+    protected void postProcessResponse(PropertyEntity entity, Map<String, Object> response) {
+        response.put("channex_id", entity.getChannexId());
     }
 
     @Override
