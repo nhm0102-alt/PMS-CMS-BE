@@ -17,6 +17,13 @@ public class RoomTypeServiceImpl extends AbstractRestEntityServiceImpl<RoomTypeE
     }
 
     @Override
+    protected void syncEntityWithData(RoomTypeEntity entity, Map<String, Object> data) {
+        if (data != null) {
+            entity.setPropertyId((String) data.get("property_id"));
+        }
+    }
+
+    @Override
     protected void afterSave(RoomTypeEntity entity, Map<String, Object> data) {
         try {
             channexSyncService.syncRoomType(entity.getId());

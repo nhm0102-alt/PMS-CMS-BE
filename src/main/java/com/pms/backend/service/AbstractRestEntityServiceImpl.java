@@ -28,6 +28,9 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
     protected void normalize(Map<String, Object> data) {
     }
 
+    protected void syncEntityWithData(E entity, Map<String, Object> data) {
+    }
+
     protected void afterSave(E entity, Map<String, Object> data) {
     }
 
@@ -80,6 +83,7 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         E e = entityFactory.get();
         e.setDeleted(false);
         e.setDataJson(encode(data));
+        syncEntityWithData(e, data);
         E saved = repository.save(e);
         afterSave(saved, data);
         return toResponse(saved, data);
@@ -128,6 +132,7 @@ public abstract class AbstractRestEntityServiceImpl<E extends BaseJsonEntity> im
         }
         normalize(current);
         r.setDataJson(encode(current));
+        syncEntityWithData(r, current);
         E saved = repository.save(r);
         afterSave(saved, current);
         return toResponse(saved, current);

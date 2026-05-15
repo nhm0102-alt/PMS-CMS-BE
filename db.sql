@@ -35,12 +35,14 @@ CREATE TABLE IF NOT EXISTS properties (
 
 CREATE TABLE IF NOT EXISTS room_types (
                                           id            VARCHAR(36)  NOT NULL,
+    property_id   VARCHAR(36)  NULL,
     data_json     LONGTEXT     NOT NULL,
     deleted       BIT(1)       NOT NULL,
     created_date  DATETIME(6)  NOT NULL,
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    KEY idx_room_types_deleted (deleted)
+    KEY idx_room_types_deleted (deleted),
+    KEY idx_room_types_property_id (property_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rooms (
@@ -85,13 +87,25 @@ CREATE TABLE IF NOT EXISTS policies (
 
 CREATE TABLE IF NOT EXISTS rate_plans (
                                           id            VARCHAR(36)  NOT NULL,
+    property_id            VARCHAR(36)  NULL,
+    cancellation_policy_id VARCHAR(36)  NULL,
+    surcharge_policy_id    VARCHAR(36)  NULL,
     data_json     LONGTEXT     NOT NULL,
     deleted       BIT(1)       NOT NULL,
     created_date  DATETIME(6)  NOT NULL,
     updated_date  DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    KEY idx_rate_plans_deleted (deleted)
+    KEY idx_rate_plans_deleted (deleted),
+    KEY idx_rate_plans_property_id (property_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rate_plan_room_types (
+    rate_plan_id  VARCHAR(36) NOT NULL,
+    room_type_id  VARCHAR(36) NOT NULL,
+    PRIMARY KEY (rate_plan_id, room_type_id),
+    KEY idx_rprt_rate_plan_id (rate_plan_id),
+    KEY idx_rprt_room_type_id (room_type_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS folio_transactions (
                                                   id            VARCHAR(36)  NOT NULL,

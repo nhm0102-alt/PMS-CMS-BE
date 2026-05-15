@@ -287,11 +287,13 @@ public class ChannexSyncService {
             for (RoomTypeEntity rt : roomTypes) {
                 syncRoomType(rt.getId());
                 
+                String rtId = rt.getId();
                 List<RatePlanEntity> ratePlans = ratePlanRepository.findByDeletedFalse().stream()
                         .filter(rp -> {
                             try {
                                 Map<String, Object> data = objectMapper.readValue(rp.getDataJson(), new TypeReference<>() {});
-                                return rt.getId().equals(data.get("room_type_id"));
+                                List<String> rtIds = (List<String>) data.get("room_type_ids");
+                                return rtIds != null && rtIds.contains(rtId);
                             } catch (Exception e) {
                                 return false;
                             }
@@ -370,6 +372,7 @@ public class ChannexSyncService {
 
         data.put("channex_id", channexId);
         roomType.setDataJson(objectMapper.writeValueAsString(data));
+        roomType.setPropertyId(propertyId);
         roomTypeRepository.save(roomType);
     }
 
@@ -381,7 +384,14 @@ public class ChannexSyncService {
         Map<String, Object> data = objectMapper.readValue(ratePlan.getDataJson(), new TypeReference<>() {});
         if (data.containsKey("channex_id")) return;
 
-        String roomTypeId = (String) data.get("room_type_id");
+        List<String> roomTypeIds = (List<String>) data.get("room_type_ids");
+        if (roomTypeIds == null || roomTypeIds.isEmpty()) return;
+
+        // Channex Rate Plan is usually linked to one Room Type, but our PMS supports many.
+        // For sync, we might need to create multiple rate plans on Channex or pick one.
+        // Assuming we pick the first one for simplicity in this demo sync logic.
+        String roomTypeId = roomTypeIds.get(0);
+        
         RoomTypeEntity roomType = roomTypeRepository.findById(roomTypeId)
                 .orElseThrow(() -> new RuntimeException("Room type not found"));
         Map<String, Object> rtData = objectMapper.readValue(roomType.getDataJson(), new TypeReference<>() {});
@@ -419,6 +429,9 @@ public class ChannexSyncService {
 
         data.put("channex_id", channexId);
         ratePlan.setDataJson(objectMapper.writeValueAsString(data));
+        ratePlan.setPropertyId(propertyId);
+        ratePlan.setCancellationPolicyId((String) data.get("cancellation_policy_id"));
+        ratePlan.setSurchargePolicyId((String) data.get("surcharge_policy_id"));
         ratePlanRepository.save(ratePlan);
     }
 }
